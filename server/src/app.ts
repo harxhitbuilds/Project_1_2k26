@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import cookieParser from "cookie-parser";
 import { morganStream } from "./utils/logger.js";
 
 const app = express();
@@ -13,6 +14,7 @@ app.use(
     credentials: true,
   })
 );
+app.use(cookieParser());
 app.use(express.json());
 app.use(helmet());
 app.use(express.urlencoded({ extended: true }));
