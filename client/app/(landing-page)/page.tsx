@@ -1,3 +1,4 @@
+"use client";
 import Hero from "@/components/land/hero";
 
 export default function LandPage() {

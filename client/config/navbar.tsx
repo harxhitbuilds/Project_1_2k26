@@ -1,7 +1,7 @@
 import { ChevronDown } from "lucide-react";
 
 export const navConfig = {
-  product : "Alloy",
+  product: "Alloy",
   logo: {
     src: "/assets/logo.svg",
     alt: "Product Name",
@@ -29,7 +29,7 @@ export const navConfig = {
   buttons: [
     {
       title: "Get Started",
-      link: "#",
+      link: "/auth",
     },
   ],
 };
