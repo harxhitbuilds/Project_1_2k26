@@ -3,8 +3,13 @@ import mongoose, { Document, Schema } from "mongoose";
 interface IUser {
   firebaseId: string;
   name: string;
+  username: string;
   email: string;
+  provider: string;
   profile?: string;
+  skills: [];
+  banner: string;
+  onboard: boolean;
 }
 
 interface IUserDocument extends IUser, Document {
@@ -25,14 +30,36 @@ const userSchema = new mongoose.Schema<IUserDocument>(
       required: true,
       trim: true,
     },
+    username: {
+      type: String,
+      unique: true,
+      trim: true,
+    },
     email: {
       type: String,
       required: true,
       trim: true,
     },
+    provider: {
+      type: String,
+      enum: ["goggle", "github"],
+    },
     profile: {
       type: String,
       trim: true,
+    },
+    skills: [
+      {
+        name: String,
+      },
+    ],
+    banner: {
+      type: String,
+      default: "",
+    },
+    onboard: {
+      type: Boolean,
+      default: false,
     },
   },
   {
