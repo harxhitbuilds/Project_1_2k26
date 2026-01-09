@@ -16,12 +16,15 @@ export const continueWithGoogle = asyncHandler(
       throw new ApiError(401, "Authorization header missing");
     }
 
+    // console.log(authHeader);
+
     const parts = authHeader.split(" ");
     if (parts.length !== 2 || parts[0] !== "Bearer") {
       throw new ApiError(401, "Invalid authorization header format");
     }
 
     const firebaseToken = parts[1];
+
     if (!firebaseToken) {
       throw new ApiError(401, "Token missing");
     }
@@ -58,16 +61,20 @@ export const continueWithGoogle = asyncHandler(
 
     const expiresIn = 60 * 60 * 24 * 7 * 1000;
 
-    const sessionCookie = await admin
-      .auth()
-      .createSessionCookie(decodedToken.uid, { expiresIn });
-
-    res.cookie("__session", sessionCookie, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "lax" as const,
       maxAge: expiresIn,
-    });
+    };
+
+    const sessionCookie = await admin
+      .auth()
+      .createSessionCookie(firebaseToken, { expiresIn });
+
+    res.cookie("__session", sessionCookie, cookieOptions);
+
+    res.cookie("__onboard", user.onboard.toString(), cookieOptions);
 
     return res
       .status(200)
@@ -87,6 +94,11 @@ export const getMe = asyncHandler(async (req, res) => {
 
 export const logout = asyncHandler(async (req, res) => {
   res.clearCookie("__session", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
+  res.clearCookie("__onboard", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -116,10 +128,17 @@ export const onBoard = asyncHandler(async (req, res) => {
   }
 
   userToUpdate.username = username;
-  userToUpdate.skills = skills;
+  userToUpdate.skills = skills.map((skill: string) => ({ name: skill }));
   userToUpdate.onboard = true;
 
   await userToUpdate.save({ validateBeforeSave: true });
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+  };
+  res.cookie("__onboard", "true", cookieOptions);
 
   return res
     .status(200)
