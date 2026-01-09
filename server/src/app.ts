@@ -30,8 +30,10 @@ app.get("/api/health", (req, res) => {
 
 // routes
 import authRouter from "./routes/auth.route.js";
+import userRouter from "./routes/user.route.js";
 import ideaRouter from "./routes/idea.route.js";
 app.use("/api/auth", authRouter);
+app.use("/api/user", userRouter);
 app.use("/api/idea", ideaRouter);
 
 export default app;
