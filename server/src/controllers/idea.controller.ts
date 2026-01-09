@@ -15,7 +15,7 @@ interface FetchIdeaRequest extends Request {
 
 export const fetchIdeas = asyncHandler(async (req: FetchIdeaRequest, res) => {
   const limit = req.query.limit ? parseInt(req.query.limit, 10) : 10;
-  const safeLimit = Math.min(limit, 15); // Cap limit at 15
+  const safeLimit = Math.min(limit, 15);
 
   const { cursor } = req.query;
 
@@ -42,7 +42,7 @@ export const fetchIdeas = asyncHandler(async (req: FetchIdeaRequest, res) => {
 
   const ideas = await Idea.find(query)
     .populate("owner", "name username profile")
-    .sort({ createdAt: 1, _id: 1 })
+    .sort({ createdAt: -1, _id: -1 })
     .limit(limit + 1);
 
   const hasMore = ideas.length > safeLimit;
