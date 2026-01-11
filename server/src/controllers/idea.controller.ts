@@ -78,10 +78,12 @@ export const fetchIdea = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Slug not found.");
   }
 
-  const idea = await Idea.findOne({ slug }).populate(
-    "owner",
-    "name username profile"
-  );
+  const idea = await Idea.findOne({ slug })
+    .populate("owner", "name username profile")
+    .populate({
+      path: "teamMembers.userId",
+      select: "name username profile",
+    });
   if (!idea) {
     throw new ApiError(404, "Idea not found");
   }

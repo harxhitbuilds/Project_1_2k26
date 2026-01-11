@@ -1,34 +1,19 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose from "mongoose";
+import type { IUser, IUserMethods, IUserModel } from "../types/user.js";
 
-interface ISkill {
-  name: string;
-}
+import jwt from "jsonwebtoken";
+import type { Secret, SignOptions } from "jsonwebtoken";
+import type { StringValue } from "ms";
 
-interface IUser {
-  firebaseId: string;
-  name: string;
-  username: string;
-  email: string;
-  provider: string;
-  profile?: string;
-  skills: ISkill[];
-  banner: string;
-  onboard: boolean;
-}
+import {
+  REFRESH_TOKEN_SECRET,
+  REFRESH_TOKEN_EXPIRY,
+  ACCESS_TOKEN_SECRET,
+  ACCESS_TOKEN_EXPIRY,
+} from "../lib/env.js";
 
-interface IUserDocument extends IUser, Document {
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const userSchema = new mongoose.Schema<IUserDocument>(
+const userSchema = new mongoose.Schema<IUser>(
   {
-    firebaseId: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
     name: {
       type: String,
       required: true,
@@ -38,6 +23,7 @@ const userSchema = new mongoose.Schema<IUserDocument>(
       type: String,
       unique: true,
       trim: true,
+      sparse: true,
     },
     email: {
       type: String,
@@ -52,21 +38,13 @@ const userSchema = new mongoose.Schema<IUserDocument>(
       type: String,
       trim: true,
     },
-    skills: [
-      {
-        name: {
-          type: String,
-          required: true,
-        },
-      },
-    ],
-    banner: {
-      type: String,
-      default: "",
-    },
-    onboard: {
+    skills: [String],
+    onBoarded: {
       type: Boolean,
       default: false,
+    },
+    refreshToken: {
+      type: String,
     },
   },
   {
@@ -74,7 +52,42 @@ const userSchema = new mongoose.Schema<IUserDocument>(
   }
 );
 
-const User = mongoose.model<IUserDocument>("User", userSchema);
+userSchema.methods.generateAccessToken = function (): string {
+  const expiresIn: StringValue = (ACCESS_TOKEN_EXPIRY as StringValue) || "1d";
+
+  const options: SignOptions = {
+    expiresIn,
+    algorithm: "HS256",
+  };
+
+  return jwt.sign(
+    {
+      _id: this._id.toString(),
+      email: this.email,
+    },
+    ACCESS_TOKEN_SECRET as Secret,
+    options
+  );
+};
+
+userSchema.methods.generateRefreshToken = function (): string {
+  const expiresIn: StringValue = (REFRESH_TOKEN_EXPIRY as StringValue) || "1d";
+
+  const options: SignOptions = {
+    expiresIn,
+    algorithm: "HS256",
+  };
+
+  return jwt.sign(
+    {
+      _id: this._id.toString(),
+      email: this.email,
+    },
+    REFRESH_TOKEN_SECRET as Secret,
+    options
+  );
+};
+
+const User = mongoose.model<IUser, IUserModel>("User", userSchema);
 
 export default User;
-export type { IUser, IUserDocument };

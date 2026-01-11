@@ -1,15 +1,16 @@
-import type { Request, Response, NextFunction } from "express";
-import ApiError from "../utils/apiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import ApiError from "../utils/apiError.js";
 
-export const requireOnBoard = asyncHandler(async (req, res, next) => {
-  if (!req.user) {
-    throw new ApiError(401, "User not found");
+import type { IAuthenticatedRequest } from "../types/request.js";
+
+export const requireOnboarding = asyncHandler(
+  async (req: IAuthenticatedRequest, res, next) => {
+    if (!req.user) {
+      throw new ApiError(400, "Unauthorized");
+    }
+    if (!req.user.onBoarded) {
+      throw new ApiError(400, "Complete onboarding");
+    }
+    next();
   }
-
-  if (!req.user.onboard) {
-    throw new ApiError(404, "Please complete onboarding first");
-  }
-
-  next();
-});
+);

@@ -10,32 +10,32 @@ import {
   rejectRequest,
   removeMember,
 } from "../controllers/idea.controller.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { requireOnBoard } from "../middlewares/onboard.middleware.js";
+import { verifyAccessToken } from "../middlewares/accessToken.middleware.js";
+import { requireOnboarding } from "../middlewares/onboard.middleware.js";
 
 const router = express.Router();
 
-router.get("/", authMiddleware, requireOnBoard, fetchIdeas);
+router.get("/", verifyAccessToken, requireOnboarding, fetchIdeas);
 
 router
   .route("/:slug")
-  .get(authMiddleware, requireOnBoard, fetchIdea)
-  .patch(authMiddleware, requireOnBoard, updateIdea)
-  .delete(authMiddleware, requireOnBoard, deleteIdea);
+  .get(verifyAccessToken, requireOnboarding, fetchIdea)
+  .patch(verifyAccessToken, requireOnboarding, updateIdea)
+  .delete(verifyAccessToken, requireOnboarding, deleteIdea);
 
-router.post("/upload", authMiddleware, requireOnBoard, uploadIdea);
+router.post("/upload", verifyAccessToken, requireOnboarding, uploadIdea);
 
 router
   .route("/:slug/request")
-  .post(authMiddleware, requireOnBoard, sendRequest);
+  .post(verifyAccessToken, requireOnboarding, sendRequest);
 router
   .route("/:slug/accept")
-  .post(authMiddleware, requireOnBoard, acceptRequest);
+  .post(verifyAccessToken, requireOnboarding, acceptRequest);
 router
   .route("/:slug/reject")
-  .post(authMiddleware, requireOnBoard, rejectRequest);
+  .post(verifyAccessToken, requireOnboarding, rejectRequest);
 router
   .route("/:slug/remove-member")
-  .post(authMiddleware, requireOnBoard, removeMember);
+  .post(verifyAccessToken, requireOnboarding, removeMember);
 
 export default router;

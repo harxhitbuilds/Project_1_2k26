@@ -1,148 +1,144 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/apiResponse.js";
 import ApiError from "../utils/apiError.js";
-import admin from "../config/firebase.config.js";
+
 import User from "../models/user.model.js";
-import type { Request } from "express";
 
-interface AuthenticatedRequest extends Request {
-  decodedToken?: any;
-}
+import type mongoose from "mongoose";
+import type { IAuthenticatedRequest } from "../types/request.js";
 
-export const continueWithGoogle = asyncHandler(
-  async (req: AuthenticatedRequest, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      throw new ApiError(401, "Authorization header missing");
-    }
+import jwt from "jsonwebtoken";
 
-    // console.log(authHeader);
+import { REFRESH_TOKEN_SECRET } from "../lib/env.js";
 
-    const parts = authHeader.split(" ");
-    if (parts.length !== 2 || parts[0] !== "Bearer") {
-      throw new ApiError(401, "Invalid authorization header format");
-    }
-
-    const firebaseToken = parts[1];
-
-    if (!firebaseToken) {
-      throw new ApiError(401, "Token missing");
-    }
-
-    const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
-    const firebaseId = decodedToken.uid; // Use uid, not firebaseId
-
-    let user = await User.findOne({ firebaseId });
-
+const generateAccessAndRefreshToken = async (
+  userId: mongoose.Types.ObjectId
+) => {
+  try {
+    const user = await User.findById(userId);
     if (!user) {
-      if (!decodedToken.name) {
-        throw new ApiError(400, "User name is missing from token");
-      }
-      if (!decodedToken.email) {
-        throw new ApiError(400, "User email is missing from token");
-      }
-      const userData: {
-        firebaseId: string;
-        name: string;
-        email: string;
-        profile?: string;
-        onboard: boolean;
-      } = {
-        firebaseId,
-        name: decodedToken.name,
-        email: decodedToken.email,
-        onboard: false,
-      };
-      if (decodedToken.picture) {
-        userData.profile = decodedToken.picture;
-      }
-      user = await User.create(userData);
+      throw new ApiError(400, "User not found");
     }
+    const accessToken = await user.generateAccessToken();
+    const refreshToken = await user.generateRefreshToken();
 
-    const expiresIn = 60 * 60 * 24 * 7 * 1000;
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const,
-      maxAge: expiresIn,
-    };
-
-    const sessionCookie = await admin
-      .auth()
-      .createSessionCookie(firebaseToken, { expiresIn });
-
-    res.cookie("__session", sessionCookie, cookieOptions);
-
-    res.cookie("__onboard", user.onboard.toString(), cookieOptions);
-
-    return res
-      .status(200)
-      .json(new ApiResponse(200, { user }, "User Signup Successful!"));
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(500, "Something went wrong");
   }
-);
+};
 
-export const getMe = asyncHandler(async (req, res) => {
-  if (!req.user) {
-    throw new ApiError(401, "User not authenticated");
+export const oauthLogin = asyncHandler(async (req, res) => {
+  const { email, name, profile, provider } = req.body;
+  if (!email || !name || !profile || !provider) {
+    throw new ApiError(400, "Missing informantion");
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { user: req.user }, "User authenticated"));
-});
-
-export const logout = asyncHandler(async (req, res) => {
-  res.clearCookie("__session", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-  });
-  res.clearCookie("__onboard", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-  });
-  return res.status(200).json(new ApiResponse(200, {}, "Logout Successfull !"));
-});
-
-export const onBoard = asyncHandler(async (req, res) => {
-  const { username, skills } = req.body;
-  const userId = req.user?._id;
-
-  if (!username || !skills) {
-    throw new ApiError(400, "Missing fields !");
-  }
-  if (!userId) {
-    throw new ApiError(401, "UnAuthorized access");
+  let user = await User.findOne({ email });
+  if (!user) {
+    user = await User.create({
+      email,
+      name,
+      profile,
+      provider,
+      onBoarded: false,
+    });
   }
 
-  let existingUser = await User.findOne({ username });
-  if (existingUser && existingUser._id.toString() !== userId.toString()) {
-    throw new ApiError(409, "Username already taken");
-  }
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+    user._id
+  );
 
-  let userToUpdate = await User.findById(userId);
-  if (!userToUpdate) {
-    throw new ApiError(404, "User not found");
-  }
-
-  userToUpdate.username = username;
-  userToUpdate.skills = skills.map((skill: string) => ({ name: skill }));
-  userToUpdate.onboard = true;
-
-  await userToUpdate.save({ validateBeforeSave: true });
-
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-  };
-  res.cookie("__onboard", "true", cookieOptions);
+  await user.save();
 
   return res
     .status(200)
     .json(
-      new ApiResponse(200, { user: userToUpdate }, "On Boarding Successfull")
+      new ApiResponse(
+        200,
+        { accessToken, refreshToken, onBoarded: user.onBoarded, user },
+        "Login Successfull"
+      )
     );
+});
+
+export const refreshToken = asyncHandler(async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    throw new ApiError(400, "Refresh token not found");
+  }
+
+  const decodedToken = jwt.verify(token, REFRESH_TOKEN_SECRET) as {
+    _id: string;
+  };
+
+  const user = await User.findById(decodedToken._id);
+  if (!user) {
+    throw new ApiError(400, "User not found");
+  }
+  if (token !== user.refreshToken) {
+    throw new ApiError(401, "Refresh token is expired or used");
+  }
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+    user._id
+  );
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { accessToken, refreshToken },
+        "Token refreshed successfully"
+      )
+    );
+});
+
+export const onBoard = asyncHandler(async (req: IAuthenticatedRequest, res) => {
+  const { username, skills } = req.body;
+  if (!username || !skills) {
+    throw new ApiError(400, "Missing information");
+  }
+  if (!req.user) {
+    throw new ApiError(400, "UnAuthorized access");
+  }
+
+  const exists = await User.findOne({ username });
+  if (exists) {
+    throw new ApiError(400, "Username already taken.");
+  }
+
+  const user = await User.findById(req.user.userId);
+  if (!user) {
+    throw new ApiError(400, "User not found");
+  }
+  user.username = username;
+  user.skills = skills;
+  user.onBoarded = true;
+
+  await user.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { user }, "Onboard successfull"));
+});
+
+export const logout = asyncHandler(async (req: IAuthenticatedRequest, res) => {
+  await User.findByIdAndUpdate(
+    req.user?.userId,
+    {
+      $set: {
+        refreshToken: "",
+      },
+    },
+    { new: true }
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
