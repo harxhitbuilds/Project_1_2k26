@@ -91,6 +91,6 @@ export const getMyStats = asyncHandler(
 
     return res
       .status(200)
-      .json(new ApiResponse(200, stats, "User stats fetched successfully"));
+      .json(new ApiResponse(200, { stats }, "User stats fetched successfully"));
   }
 );
