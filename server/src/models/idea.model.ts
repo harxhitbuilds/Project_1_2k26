@@ -1,38 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 
-interface ITechnology {
-  name: string;
-}
-
-interface IRequirement {
-  role: string;
-}
-
-interface ITeamMember {
-  userId: mongoose.Types.ObjectId;
-  role: string;
-  joinedAt: Date;
-}
-
-interface IRequestSubdocument {
-  userId: mongoose.Types.ObjectId;
-  role: string;
-  status: "pending" | "accepted" | "rejected";
-}
-
-interface IIdea {
-  title: string;
-  description: string;
-  owner: mongoose.Types.ObjectId;
-  technologies: ITechnology[];
-  requirements: IRequirement[];
-  teamMembers: ITeamMember[];
-  status: "draft" | "open" | "in-progress" | "completed" | "archived";
-  requests: IRequestSubdocument[];
-  slug?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { IIdea } from "../types/idea.js";
 
 const ideaSchema = new Schema<IIdea>(
   {
@@ -61,62 +29,27 @@ const ideaSchema = new Schema<IIdea>(
         },
       },
     ],
-    requirements: [
-      {
-        role: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-      },
-    ],
-    teamMembers: [
-      {
-        userId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        role: {
-          type: String,
-          required: true,
-          trim: true,
-        },
-        joinedAt: {
-          type: Date,
-          default: Date.now,
-        },
-      },
-    ],
     status: {
       type: String,
       enum: ["draft", "open", "in-progress", "completed", "archived"],
       default: "draft",
     },
-    requests: [
-      {
-        userId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        message: {
-          type: String,
-          trim: true,
-        },
-        status: {
-          type: String,
-          enum: ["pending", "accepted", "rejected"],
-          default: "pending",
-        },
-      },
-    ],
     slug: {
       type: String,
       unique: true,
       sparse: true,
       trim: true,
     },
+    lookingForCollaboratos: {
+      type: Boolean,
+      required: true,
+    },
+    requirements: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
   },
   {
     timestamps: true,
@@ -126,4 +59,4 @@ const ideaSchema = new Schema<IIdea>(
 const Idea = mongoose.model<IIdea>("Idea", ideaSchema);
 
 export default Idea;
-export type { IIdea, ITeamMember };
+export type { IIdea };
