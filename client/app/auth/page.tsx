@@ -1,29 +1,32 @@
 "use client";
-import { navConfig } from "@/config/navbar";
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BsGoogle, BsGithub } from "react-icons/bs";
-import { Lock } from "lucide-react";
-import Image from "next/image";
-import { useAuthStore } from "@/store/auth.store";
-import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 
+import { BsGoogle, BsGithub } from "react-icons/bs";
+import { Lock } from "lucide-react";
+
+import { navConfig } from "@/config/navbar";
+
+import Image from "next/image";
+
+import { signIn } from "next-auth/react";
+
+import { toast } from "sonner";
+
 export default function AuthPage() {
-  const router = useRouter();
-  const { continueWithGoogle, loading } = useAuthStore();
-  const handleLogin = async () => {
-    await continueWithGoogle();
-    router.refresh();
-    router.push("/");
+  const [isLoading, setIsLoading] = useState<"google" | "github" | null>(null);
+  const handleSignIn = async (provider: "google" | "github") => {
+    setIsLoading(provider);
+    try {
+      await signIn(provider, { callbackUrl: "/home" });
+    } catch (error) {
+      toast.error("An unexpected error occurred during sign-in.");
+      setIsLoading(null);
+    }
   };
-  if (loading) {
-    return (
-      <div className="h-screen bg-background flex items-center justify-center">
-        <Spinner className="text-foreground" />
-      </div>
-    );
-  }
   return (
     <div className="min-h-screen flex items-center justify-center relative bg-popover">
       <div className="flex items-center gap-2 absolute md:top-12 top-12 md:left-24">
@@ -47,10 +50,16 @@ export default function AuthPage() {
         </div>
         <div className="w-full flex flex-col gap-4">
           <Button
-            onClick={handleLogin}
+            onClick={() => handleSignIn("google")}
+            disabled={!!isLoading}
             className="rounded-xs py-6 border border-border cursor-pointer"
           >
-            <BsGoogle /> Continue In with Google
+            {isLoading === "google" ? (
+              <Spinner />
+            ) : (
+              <BsGoogle className="mr-2" />
+            )}{" "}
+            Continue In with Google
           </Button>
           <Button
             disabled
