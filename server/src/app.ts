@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import { morganStream } from "./utils/logger.js";
+import errorHandler from "./handlers/error.handler.js";
 
 const app = express();
 
@@ -35,5 +36,7 @@ import ideaRouter from "./routes/idea.route.js";
 app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/idea", ideaRouter);
+
+app.use(errorHandler);
 
 export default app;
