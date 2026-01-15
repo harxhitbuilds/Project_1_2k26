@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import axios from "axios";
 
 import API from "@/lib/api";
 import { toast } from "sonner";
@@ -10,28 +11,19 @@ export const useUserStore = create<UserStore>((set) => ({
   userIdeas: [],
   myIdeas: [],
   myTeams: [],
-  myStats: null,
   fetching: false,
 
   async fetchMyIdeas() {
     set({ fetching: true });
     try {
       const res = await API.get("/user/my-ideas");
-      set({ myIdeas: res.data.data.ideas });
+      set({ userIdeas: res.data.data.ideas });
     } catch (error) {
-      toast.error("Failed to fetch your ideas.");
-    } finally {
-      set({ fetching: false });
-    }
-  },
-
-  async fetchMyStats() {
-    set({ fetching: true });
-    try {
-      const res = await API.get("/user/my-stats");
-      set({ myStats: res.data.data.stats });
-    } catch (error) {
-      toast.error("Failed to fetch your teams.");
+      const errorMessage =
+        axios.isAxiosError(error) && error.response
+          ? error.response.data.message
+          : "Failed to fetch your ideas.";
+      toast.error(errorMessage);
     } finally {
       set({ fetching: false });
     }
@@ -42,6 +34,11 @@ export const useUserStore = create<UserStore>((set) => ({
       const response = await API.post("/user/update", data);
       return response.data.data.user;
     } catch (error) {
+      const errorMessage =
+        axios.isAxiosError(error) && error.response
+          ? error.response.data.message
+          : "Failed to update profile.";
+      toast.error(errorMessage);
       console.error("Failed to update profile:", error);
       throw error;
     }
@@ -53,7 +50,12 @@ export const useUserStore = create<UserStore>((set) => ({
       const res = await API.get(`/user/get-profile/${username}`);
       set({ user: res.data.data.user, userIdeas: res.data.data.userIdeas });
     } catch (error) {
-      console.error("Failed to update profile:", error);
+      const errorMessage =
+        axios.isAxiosError(error) && error.response
+          ? error.response.data.message
+          : "Failed to fetch user profile.";
+      toast.error(errorMessage);
+      console.error("Failed to fetch profile:", error);
       throw error;
     } finally {
       set({ fetching: false });

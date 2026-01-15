@@ -27,7 +27,11 @@ export const useIdeaStore = create<IdeaStore>((set, get) => ({
         hasMore,
       }));
     } catch (error) {
-      toast.error("Failed to fetch ideas.");
+      const errorMessage =
+        axios.isAxiosError(error) && error.response
+          ? error.response.data.message
+          : "Failed to fetch ideas.";
+      toast.error(errorMessage);
     } finally {
       set({ fetching: false });
     }
@@ -45,7 +49,11 @@ export const useIdeaStore = create<IdeaStore>((set, get) => ({
       const { ideas } = res.data.data;
       set({ ideas, fetching: false });
     } catch (error) {
-      toast.error("Failed to search for ideas.");
+      const errorMessage =
+        axios.isAxiosError(error) && error.response
+          ? error.response.data.message
+          : "Failed to search for ideas.";
+      toast.error(errorMessage);
       set({ fetching: false });
     }
   },
@@ -56,7 +64,11 @@ export const useIdeaStore = create<IdeaStore>((set, get) => ({
       const res = await API.get(`/idea/${slug}`);
       set({ currentIdea: res.data.data.idea });
     } catch (error) {
-      toast.error("Failed to fetch idea details.");
+      const errorMessage =
+        axios.isAxiosError(error) && error.response
+          ? error.response.data.message
+          : "Failed to fetch idea details.";
+      toast.error(errorMessage);
     } finally {
       set({ loading: false });
     }
@@ -114,7 +126,11 @@ export const useIdeaStore = create<IdeaStore>((set, get) => ({
       toast.success("Idea deleted successfully.");
       onSuccess?.();
     } catch (error) {
-      toast.error("Failed to delete idea.");
+      const errorMessage =
+        axios.isAxiosError(error) && error.response
+          ? error.response.data.message
+          : "Failed to delete idea.";
+      toast.error(errorMessage);
     } finally {
       set({ loading: false });
     }
