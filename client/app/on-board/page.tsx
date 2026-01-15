@@ -1,17 +1,24 @@
 "use client";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
+import { Spinner } from "@/components/ui/spinner";
+
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
 import { navConfig } from "@/config/navbar";
-import { User, Loader2 } from "lucide-react";
+
+import Image from "next/image";
+
+import { User } from "lucide-react";
+
 import * as zod from "zod";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuthStore } from "@/store/auth.store";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { toast } from "sonner";
 
 const onBoardSchema = zod.object({
   username: zod
@@ -26,31 +33,51 @@ const onBoardSchema = zod.object({
 
 type Inputs = zod.infer<typeof onBoardSchema>;
 
-export default function OnBoard() {
-  const { onBoard, loading, user } = useAuthStore();
-  const router = useRouter();
+import { useAuthStore } from "@/store/auth.store";
 
+export default function OnBoard() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<Inputs>({
     resolver: zodResolver(onBoardSchema),
   });
+  const router = useRouter();
+  const { onBoard } = useAuthStore();
+  const { update } = useSession();
 
   const onSubmit: SubmitHandler<Inputs> = async (data) => {
-    const skillsArray = data.skills.split(",").map((skill) => skill.trim());
-    await onBoard({ username: data.username, skills: skillsArray });
-  };
+    setIsSubmitting(true);
 
-  useEffect(() => {
-    if (user && user.onboard) {
-      router.replace("/");
-    }
-    if (!user) {
-      router.replace("/login");
-    }
-  }, [user, router]);
+    const onBoardPromise = async () => {
+      const skillsArray = data.skills
+        .split(",")
+        .map((skill) => skill.trim())
+        .filter((skill) => skill !== "");
+
+      const updatedUser = await onBoard(data.username, skillsArray);
+      await update({ onBoarded: true, user: updatedUser });
+    };
+    toast.promise(onBoardPromise(), {
+      loading: "Completing your profile...",
+      success: () => {
+        router.push("/home");
+        return "Profile completed successfully!";
+      },
+      error: (error) => {
+        const errorMessage =
+          error.response?.data?.message || "An error occurred.";
+        setError("username", { type: "manual", message: errorMessage });
+        return errorMessage;
+      },
+      finally: () => {
+        setIsSubmitting(false);
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center relative bg-background p-4">
@@ -118,16 +145,8 @@ export default function OnBoard() {
             )}
           </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="rounded-xs py-6 mt-2"
-          >
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              "Complete Profile"
-            )}
+          <Button type="submit" className="rounded-xs py-6 mt-2">
+            {isSubmitting ? <Spinner /> : "Complete Profile"}
           </Button>
         </form>
       </div>
